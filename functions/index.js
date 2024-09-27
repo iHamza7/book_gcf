@@ -1,11 +1,11 @@
 const dotenv = require("dotenv");
-dotenv.config({path: "./config.env"});
+dotenv.config({ path: "./config.env" });
 
-const {onCall, HttpsError} = require("firebase-functions/v2/https");
-const {initializeApp} = require("firebase-admin/app");
-const {getFirestore} = require("firebase-admin/firestore");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { initializeApp } = require("firebase-admin/app");
+const { getFirestore } = require("firebase-admin/firestore");
 
-const {Timestamp} = require("firebase-admin/firestore");
+const { Timestamp } = require("firebase-admin/firestore");
 
 const stripe = require("stripe")(process.env.stripe_secret_key);
 initializeApp();
@@ -17,23 +17,26 @@ exports.createStripeCustomer = onCall(async (request) => {
       throw new HttpsError("unauthenticated", "Authentication required.");
     }
     const userId = request.auth.uid;
+    const { userEmail, userName } = request.data;
 
     const customer = await stripe.customers.create({
+      email: userEmail,
+      name: userName,
       metadata: {
         uid: userId,
       },
     });
 
     await db.collection("Users").doc(userId).set(
-        {
-          stripeCustomerId: customer.id,
-          customerCreated: true,
-          customerCreationDate: Timestamp.now(),
-        },
-        {merge: true},
+      {
+        stripeCustomerId: customer.id,
+        customerCreated: true,
+        customerCreationDate: Timestamp.now(),
+      },
+      { merge: true }
     );
 
-    return {success: true, customerId: customer.id};
+    return { success: true, customerId: customer.id };
   } catch (error) {
     throw new HttpsError("internal", error);
   }
@@ -44,7 +47,7 @@ exports.addCardToCustomer = onCall(async (data, context) => {
     if (!context.auth) {
       throw new HttpsError("unauthenticated", "Authentication required.");
     }
-    const {customerId, cardToken} = data;
+    const { customerId, cardToken } = data;
 
     const updatedCustomer = await stripe.customers.update(customerId, {
       invoice_settings: {
@@ -52,7 +55,7 @@ exports.addCardToCustomer = onCall(async (data, context) => {
       },
     });
 
-    return {success: true, updatedCustomer};
+    return { success: true, updatedCustomer };
   } catch (error) {
     console.error("Error", error);
     throw new HttpsError("internal", error);
